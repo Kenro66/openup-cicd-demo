@@ -11,11 +11,12 @@
 #
 # 🛠 실행 순서 (위에서 아래로):
 #   1) 레포 코드 받기 (checkout)
-#   2) Node.js 20 설치 + npm 캐시 활성화
+#   2) Node.js 22 설치 + npm 캐시 활성화
 #   3) npm ci 로 의존성 설치 (package-lock.json 기준 정확 설치)
-#   4) npm run lint  → 사실은 TypeScript 타입 체크 (tsc --noEmit)
-#   5) npm test      → Jest 테스트 실행
-#   6) coverage 리포트를 아티팩트로 업로드 (실패해도 always 실행)
+#   4) npm run lint          → 사실은 TypeScript 타입 체크 (tsc --noEmit)
+#   5) npm run lint:quality  → ESLint 정적 분석 (2026-11 블록 3에서 추가)
+#   6) npm test              → Jest 테스트 실행
+#   7) coverage 리포트를 아티팩트로 업로드 (실패해도 always 실행)
 
 name: CI
 
@@ -30,41 +31,53 @@ jobs:
     name: Lint + Test (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
-      # 매트릭스로 여러 Node 버전 테스트 가능 (지금은 20만)
-      # 예: node: [18, 20, 22] 로 늘리면 3개 환경에서 병렬 실행
+      # 매트릭스로 여러 Node 버전 테스트 가능 (지금은 22만)
+      # 예: node: [22, 24] 로 늘리면 2개 환경에서 병렬 실행
+      # (Node 20은 2026년 4월에 지원이 끝나 22로 올렸습니다)
       matrix:
-        node: [20]
+        node: [22]
 
     steps:
       # ① 레포의 코드를 러너 안으로 가져온다
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ② Node.js 설치 + npm 캐시 활성화 (두 번째 실행부터 빨라짐)
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
           cache: npm
 
       # ③ 의존성 설치 (package-lock.json 기준의 정확 설치)
       - name: Install dependencies
+        id: install
         run: npm ci
 
       # ④ 린트 단계: 이름은 lint지만 사실 tsc 타입 체크
       - name: Type check
         run: npm run lint
 
-      # ⑤ 테스트 단계: Jest로 단위/통합 테스트 모두 실행
+      # ⑤ 품질 단계: ESLint 정적 분석 (eslint.config.mjs 규칙 기준)
+      #    'error' 규칙을 어기면 빨간불, 'warn' 규칙은 경고만 남기고 통과
+      #    설치가 성공했다면 타입 검사가 실패해도 ESLint는 돌린다
+      - name: Code quality (ESLint)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run lint:quality
+
+      # ⑥ 테스트 단계: Jest로 단위/통합 테스트 모두 실행
+      #    설치가 성공했다면 타입 검사·ESLint가 실패해도 테스트는 돌려서
+      #    '타입 오류', '품질 규칙 위반', '동작 변경'을 한 번에 구분해 볼 수 있게 한다
       - name: Run tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm test
 
-      # ⑥ 커버리지 리포트 업로드
+      # ⑦ 커버리지 리포트 업로드
       #    if: always() → 위 단계가 실패해도 항상 업로드 시도
       #    if-no-files-found: ignore → 파일이 없어도 에러 안 냄
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: coverage/
