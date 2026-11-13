@@ -1,3 +1,4 @@
+
 /**
  * 📌 이 파일의 역할: "학점(평점) 계산기"
  *
@@ -12,15 +13,15 @@
 export type Grade = 'A+' | 'A0' | 'B+' | 'B0' | 'C+' | 'C0' | 'D+' | 'D0' | 'F' | 'P' | 'NP';
 
 export interface Course {
-  name: string;     // 과목명
-  credits: number;  // 학점 수 (예: 3)
-  grade: Grade;     // 받은 등급
+  name: string;
+  credits: number;
+  grade: Grade;
 }
 
 export interface GpaResult {
-  gpa: number | null;     // 평점 평균
-  gradedCredits: number;  // 평점 계산에 들어간 학점 수
-  earnedCredits: number;  // 취득 학점 수
+  gpa: number | null;
+  gradedCredits: number;
+  earnedCredits: number;
 }
 
 // 등급을 평점으로 바꾼다
@@ -62,15 +63,28 @@ export function calculateGpa(courses: Course[]): GpaResult {
   let earnedCredits = 0;
 
   for (const course of finalCourses) {
-    totalPoints += course.credits * gradeToPoint(course.grade);
-    gradedCredits += course.credits;
     if (course.grade != 'F' && course.grade != 'NP') {
       earnedCredits += course.credits;
     }
+
+    // 수정 1: P/NP 과목은 평점 계산에서 제외
+    const isPassFail = course.grade === 'P' || course.grade === 'NP';
+
+    if (isPassFail) {
+      continue;
+    }
+
+    totalPoints += course.credits * gradeToPoint(course.grade);
+    gradedCredits += course.credits;
   }
 
-  // 소수 둘째 자리까지 표시한다
-  const gpa = Math.floor((totalPoints / gradedCredits) * 100) / 100;
+  // 수정 2: 평점 대상 과목이 없으면 null 반환
+  if (gradedCredits === 0) {
+    return { gpa: null, gradedCredits, earnedCredits };
+  }
+
+  // 수정 3: 소수 셋째 자리에서 반올림
+  const gpa = Math.round((totalPoints / gradedCredits) * 100) / 100;
 
   return { gpa, gradedCredits, earnedCredits };
 }
