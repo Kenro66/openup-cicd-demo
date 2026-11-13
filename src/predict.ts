@@ -26,7 +26,7 @@ export interface PredictOutput {
 }
 
 // 각 입력 항목의 중요도 (1번이 가장 중요, 4번이 가장 덜 중요)
-const WEIGHTS = [0.4, 0.3, 0.2, 0.1];
+const WEIGHTS = [0.5, 0.3, 0.15, 0.05];
 
 export function predict(input: PredictInput): PredictOutput {
   const { features } = input;
