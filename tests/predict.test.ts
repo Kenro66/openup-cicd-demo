@@ -21,7 +21,7 @@ import { predict } from '../src/predict';
 describe('predict', () => {
   it('returns positive label when weighted sum is high', () => {
     const result = predict({ features: [10, 10, 10, 10] });
-    expect(result.label).toBe('negative');
+    expect(result.label).toBe('positive');
     expect(result.score).toBeGreaterThan(0.5);
   });
 
